@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const HttpError = require("../models/http-error");
 
-export const signUp = async (req, res, next) => {
+const signUp = async (req, res, next) => {
   let user = req.body;
   let existingUser;
 
@@ -76,7 +76,7 @@ export const signUp = async (req, res, next) => {
     .status(201);
 };
 
-export const login = async (req, res, next) => {
+const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   let existingUser;
@@ -134,3 +134,6 @@ export const login = async (req, res, next) => {
 
   res.json({ userId: existingUser.id, email: existingUser, token }).status(200);
 };
+
+exports.signUp = signUp;
+exports.login = login;
