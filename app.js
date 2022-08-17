@@ -4,13 +4,14 @@ const bodyParser = require("body-parser");
 
 const usersRoutes = require("./routes/users");
 const expensesRoutes = require("./routes/expenses");
+const HttpError = require("./models/http-error");
 
 const app = express();
 
 app.use(bodyParser.json());
 
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin");
+  // res.setHeader("Access-Control-Allow-Origin");
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Headers",

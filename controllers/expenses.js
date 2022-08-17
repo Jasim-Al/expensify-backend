@@ -21,16 +21,39 @@ const getExpensesByUserId = async (req, res, next) => {
   }
 
   if (!userWithExpenses || userWithExpenses.expenses.length == 0) {
-    return next(
-      new HttpError("Could not find expenses for the provided user id.", 404)
-    );
+    return res.json({ expenses: [] }).status(200);
   }
 
-  res.json({
-    expenses: userWithExpenses.expenses.map((expense) => {
-      expense.toObject({ getters: true });
-    }),
-  });
+  res
+    .json({
+      expenses: userWithExpenses.expenses.map((expense) =>
+        expense.toObject({ getters: true })
+      ),
+    })
+    .status(200);
+};
+
+const getExpenseById = async (req, res, next) => {
+  const expenseId = req.params.eid;
+
+  let expense;
+
+  try {
+    expense = await Expense.findById(expenseId);
+  } catch (error) {
+    const err = new HttpError(
+      "Finding expense failed, please try again later.",
+      500
+    );
+    return next(err);
+  }
+
+  if (!expense) {
+    const err = new HttpError("Invalid expense id.", 403);
+    return next(err);
+  }
+
+  res.json({ expense: expense }).status(200);
 };
 
 const createExpense = async (req, res, next) => {
@@ -69,9 +92,9 @@ const createExpense = async (req, res, next) => {
   }
 
   try {
-    const sess = mongoose.startSession();
+    const sess = await mongoose.startSession();
     sess.startTransaction();
-    await createExpense.save({ session: sess });
+    await createdExpense.save({ session: sess });
     user.expenses.push(createdExpense);
     await user.save({ session: sess });
     await sess.commitTransaction();
@@ -96,7 +119,7 @@ const updateExpense = async (req, res, next) => {
 
   let expense;
   try {
-    expense = Expense.findById(expenseId);
+    expense = await Expense.findById(expenseId);
   } catch (error) {
     const err = new HttpError(
       "Something went wrong, could not update place.",
@@ -130,7 +153,7 @@ const deleteExpense = async (req, res, next) => {
   let expense;
 
   try {
-    expense = await Expense.findById(expenseId);
+    expense = await Expense.findById(expenseId).populate("userId");
   } catch (error) {
     return next(
       new HttpError("Something went wrong, could not delete expense.", 500)
@@ -141,18 +164,19 @@ const deleteExpense = async (req, res, next) => {
     return next("Could'nt find expense for the given id.", 404);
   }
 
-  if (expense.userId !== req.userData.userId) {
+  if (expense.userId.id !== req.userData.userId) {
     return next(
       new HttpError("You are not allowed to delete this expense.", 401)
     );
   }
 
   try {
-    const sess = mongoose.startSession();
+    const sess = await mongoose.startSession();
+    sess.startTransaction();
     await expense.remove({ session: sess });
     expense.userId.expenses.pull(expense);
     await expense.userId.save({ session: sess });
-    (await sess).commitTransaction();
+    await sess.commitTransaction();
   } catch (error) {
     return next(
       new HttpError("Something went wrong, could not delete expense.", 500)
@@ -162,6 +186,7 @@ const deleteExpense = async (req, res, next) => {
 };
 
 exports.getExpensesByUserId = getExpensesByUserId;
+exports.getExpenseById = getExpenseById;
 exports.createExpense = createExpense;
 exports.updateExpense = updateExpense;
 exports.deleteExpense = deleteExpense;

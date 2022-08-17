@@ -1,3 +1,4 @@
+const { validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -5,11 +6,17 @@ const User = require("../models/User");
 const HttpError = require("../models/http-error");
 
 const signUp = async (req, res, next) => {
-  let user = req.body;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return next(
+      new HttpError("Invalid inputs passed, please check your data.", 422)
+    );
+  }
+  let { name, email, password } = req.body;
   let existingUser;
 
   try {
-    existingUser = await User.findOne({ email: user.email });
+    existingUser = await User.findOne({ email: email });
   } catch (error) {
     const err = new HttpError(
       "Signing up failed, please try again later.",
@@ -28,15 +35,15 @@ const signUp = async (req, res, next) => {
   let hashedPassword;
 
   try {
-    hashedPassword = bcrypt.hash(user.password, 12);
+    hashedPassword = await bcrypt.hash(password, 12);
   } catch (error) {
     const err = new HttpError("could not create user, please try again", 500);
     return next(err);
   }
 
   const createdUser = new User({
-    name: user.name,
-    email: user.email,
+    name: name,
+    email: email,
     password: hashedPassword,
   });
 
@@ -47,6 +54,7 @@ const signUp = async (req, res, next) => {
       "Signing up failed, please try again later.",
       500
     );
+    console.log(error);
     return next(err);
   }
 
@@ -82,7 +90,7 @@ const login = async (req, res, next) => {
   let existingUser;
 
   try {
-    existingUser = await User.findOne({ email: user.email });
+    existingUser = await User.findOne({ email: email });
   } catch (error) {
     const err = new HttpError(
       "Logging in failed, please try again later.",
@@ -132,7 +140,9 @@ const login = async (req, res, next) => {
     return next(err);
   }
 
-  res.json({ userId: existingUser.id, email: existingUser, token }).status(200);
+  res
+    .json({ userId: existingUser.id, email: existingUser.email, token })
+    .status(200);
 };
 
 exports.signUp = signUp;
